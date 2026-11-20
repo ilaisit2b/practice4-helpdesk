@@ -9,6 +9,7 @@ export class TicketsPage {
   itemByTitle(title) { return cy.contains('[data-testid="ticket-item"]', title); }
   searchFor(text) { cy.get('[data-testid="search"]').clear().type(text); }
   setStatus(status) { cy.get('[data-testid="status-filter"]').select(status); }
+  setPriority(priority) { cy.get('[data-testid="priority-filter"]').select(priority); }
   setCategory(category) { cy.get('[data-testid="category-filter"]').select(category); }
   // Нажать кнопку действия («В работу» / «Завершить») у заявки и дождаться PATCH
   pressAction(title, label) {
