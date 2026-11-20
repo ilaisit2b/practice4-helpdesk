@@ -4,6 +4,10 @@ const CATEGORIES = ['hardware', 'software', 'network'];
 const PRIORITIES = ['low', 'medium', 'high'];
 const STATUSES = ['new', 'in_progress', 'resolved'];
 const PRIORITY_RANK = { low: 1, medium: 2, high: 3 };
+// Поля, по которым фильтр сравнивает значение на точное совпадение
+const EXACT_FILTERS = ['status', 'category', 'priority'];
+// Разрешённые переходы: из какого статуса -> в какой
+const TRANSITIONS = { new: ['in_progress'], in_progress: ['resolved'], resolved: [] };
 
 /**
  * Нормализует тему заявки: внешние и повторяющиеся пробелы незначимы.
@@ -38,40 +42,44 @@ function validateTicketInput(input) {
 }
 
 function canChangeStatus(from, to) {
-  if (!STATUSES.includes(from) || !STATUSES.includes(to)) return false;
-  if (from === 'new') return to === 'in_progress';
-  if (from === 'in_progress') return to === 'resolved';
-  return false;
+  return Object.hasOwn(TRANSITIONS, from) && TRANSITIONS[from].includes(to);
 }
 
 /**
  * Условия поиска объединяются оператором AND.
  * В результирующем списке первыми должны идти важные и новые заявки.
  */
+function clean(value) {
+  return String(value || '').trim();
+}
+
+function matchesFilters(ticket, filters) {
+  const exactOk = EXACT_FILTERS.every((field) => {
+    const wanted = clean(filters[field]);
+    return !wanted || ticket[field] === wanted;
+  });
+  if (!exactOk) return false;
+  const search = clean(filters.search).toLowerCase();
+  if (!search) return true;
+  return ticket.title.toLowerCase().includes(search)
+    || ticket.description.toLowerCase().includes(search);
+}
+
+function compareTickets(a, b) {
+  const byPriority = PRIORITY_RANK[b.priority] - PRIORITY_RANK[a.priority];
+  if (byPriority !== 0) return byPriority;
+  return b.createdAt.localeCompare(a.createdAt);
+}
+
 function filterAndSort(tickets, filters = {}) {
-  const search = String(filters.search || '').trim().toLowerCase();
-  const status = String(filters.status || '').trim();
-  const category = String(filters.category || '').trim();
-  const priority = String(filters.priority || '').trim();
-  return tickets
-    .filter((ticket) => {
-      if (status && ticket.status !== status) return false;
-      if (category && ticket.category !== category) return false;
-      if (priority && ticket.priority !== priority) return false;
-      if (!search) return true;
-      return ticket.title.toLowerCase().includes(search) || ticket.description.toLowerCase().includes(search);
-    })
-    .sort((a, b) => {
-      const byPriority = PRIORITY_RANK[b.priority] - PRIORITY_RANK[a.priority];
-      if (byPriority !== 0) return byPriority;
-      return b.createdAt.localeCompare(a.createdAt);
-    });
+  return tickets.filter((ticket) => matchesFilters(ticket, filters)).sort(compareTickets);
 }
 
 module.exports = {
   CATEGORIES,
   PRIORITIES,
   STATUSES,
+  EXACT_FILTERS,
   normalizeTitle,
   validateTicketInput,
   canChangeStatus,

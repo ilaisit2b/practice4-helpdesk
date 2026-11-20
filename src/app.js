@@ -4,6 +4,9 @@ const http = require('node:http');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const { createTicketStore } = require('./store');
+const { STATUSES, EXACT_FILTERS } = require('./core');
+
+const LIST_FILTERS = ['search', ...EXACT_FILTERS];
 
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
 const PUBLIC_FILES = {
@@ -54,12 +57,8 @@ function createApp({ seed, testMode = false } = {}) {
         return sendJson(res, 200, { status: 'ok' });
       }
       if (req.method === 'GET' && pathname === '/api/tickets') {
-        const items = store.list({
-          search: url.searchParams.get('search'),
-          status: url.searchParams.get('status'),
-          category: url.searchParams.get('category'),
-          priority: url.searchParams.get('priority')
-        });
+        const filters = Object.fromEntries(LIST_FILTERS.map((key) => [key, url.searchParams.get(key)]));
+        const items = store.list(filters);
         return sendJson(res, 200, { items, total: items.length });
       }
       if (req.method === 'POST' && pathname === '/api/tickets') {
@@ -71,7 +70,7 @@ function createApp({ seed, testMode = false } = {}) {
       const match = /^\/api\/tickets\/(\d+)\/status$/.exec(pathname);
       if (req.method === 'PATCH' && match) {
         const body = await readJson(req);
-        if (!body || typeof body !== 'object' || !['new','in_progress','resolved'].includes(body.status)) {
+        if (!body || typeof body !== 'object' || !STATUSES.includes(body.status)) {
           return sendJson(res, 400, { error: 'Недопустимый статус' });
         }
         const result = store.changeStatus(Number(match[1]), body.status);
