@@ -119,6 +119,11 @@ describe('U: поиск и сортировка', () => {
     expect(filterAndSort(tickets, { search: 'сет', category: 'hardware' })).toEqual([]);
   });
 
+  test('T-03 фильтр priority (TDD)', () => {
+    expect(filterAndSort(tickets, { priority: 'high' }).map((t) => t.id)).toEqual([4, 2]);
+    expect(filterAndSort(tickets, { priority: 'high', category: 'network' }).map((t) => t.id)).toEqual([4]);
+  });
+
   test('фильтрация не меняет исходный массив', () => {
     const copy = JSON.parse(JSON.stringify(tickets));
     filterAndSort(tickets, { search: 'x' });
