@@ -1,6 +1,6 @@
 # HelpDesk — стенд для практической работы № 4
 
-Веб-приложение на Node.js (сервер без внешних runtime-зависимостей) и нативном JavaScript. Оно **умышленно содержит дефекты** и не предназначено для настоящих обращений пользователей.
+Веб-приложение на Node.js (сервер без внешних runtime-зависимостей) и нативном JavaScript. Исходно стенд **умышленно содержал дефекты**; они найдены тестами и исправлены (см. раздел «Результаты»).
 
 ## Требования
 
@@ -45,7 +45,7 @@ npm run e2e
 | Метод | Путь | Назначение |
 |---|---|---|
 | GET | `/api/health` | Проверка доступности |
-| GET | `/api/tickets?search=&status=&category=` | Поиск и список |
+| GET | `/api/tickets?search=&status=&category=&priority=` | Поиск и список |
 | POST | `/api/tickets` | Создание заявки |
 | PATCH | `/api/tickets/:id/status` | Изменение статуса |
 | POST | `/api/__reset` | Только для E2E тестового режима |
@@ -71,6 +71,33 @@ npm run e2e
 - `public/` — пользовательский интерфейс.
 - `tests/unit`, `tests/integration` — примеры тестов Jest.
 - `cypress/pages`, `cypress/e2e` — Page Object и пример E2E.
-- `.github/workflows/qa.yml` — заготовка CI.
+- `.github/workflows/qa.yml` — CI: Jest (unit + integration + coverage) и Cypress E2E.
+- `docs/helpdesk.feature` — BDD-сценарии Given/When/Then со ссылками на тесты.
 
-**Важно:** не исправляйте исходники до того, как зафиксируете хотя бы один падающий тест на каждое найденное нарушение. Требования и критерии находятся в методических материалах к работе.
+## Результаты практической работы № 4
+
+| Набор | Тестов | Исходный код (до TDD) | После исправлений и TDD |
+|---|---|---|---|
+| Unit (Jest) | 30 | 7 из 29 упало | 30 / 30 |
+| Integration (Jest) | 16 | 5 из 14 упало | 16 / 16 |
+| E2E (Cypress) | 7 | E-01 (сортировка), E-06 (XSS) падают | 7 / 7 |
+
+### Найденные дефекты
+
+| ID | Требование | Тест (RED) | Причина | Исправление (коммит) |
+|---|---|---|---|---|
+| D1 | Тема: схлопывание пробелов, длина после нормализации | U-02, U-03, I-03, I-04 | `normalizeTitle` делал только `trim()`, валидация мерила «сырую» строку | `fix(D1-D4)` — `src/core.js` |
+| D2 | Переходы только new→in_progress→resolved | U-06, I-10 | разрешён `new → resolved` | `fix(D1-D4)` — `src/core.js` |
+| D3 | Сортировка high → medium → low | U-07, I-09, E-01 | компаратор `a - b` вместо `b - a` | `fix(D1-D4)` — `src/core.js` |
+| D4 | Поиск без учёта регистра | U-08, U-09, I-08 | `includes` без `toLowerCase()` | `fix(D1-D4)` — `src/core.js` |
+| D5 | HTML из ввода — как текст | E-06 | вывод через `innerHTML` (XSS) | `fix(D5)` — `public/app.js` |
+
+### TDD: фильтр по приоритету
+
+1. RED — `test(TDD RED)`: T-01, T-02, T-03, E-07 падают (параметр `priority` игнорируется).
+2. GREEN — `feat(TDD GREEN)`: `src/core.js`, `src/app.js`, `public/index.html`, `public/app.js`.
+3. REFACTOR — `refactor(TDD)`: таблица переходов `TRANSITIONS`, общий фильтр по полям `EXACT_FILTERS`; полный регрессионный набор зелёный.
+
+### CI
+
+GitHub Actions: https://github.com/ilaisit2b/practice4-helpdesk/actions — workflow «HelpDesk autotests» (Jest + Cypress) запускается на каждый push и pull request. В истории коммитов видно: RED после добавления тестов → GREEN после `fix(D1-D4)` и `fix(D5)` → RED на `test(TDD RED)` → GREEN на `feat(TDD GREEN)`.
