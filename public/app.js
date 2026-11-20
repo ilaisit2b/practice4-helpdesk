@@ -14,6 +14,39 @@ const priorityLabels = { low: 'Низкий', medium: 'Средний', high: '�
 const categoryLabels = { hardware: 'Оборудование', software: 'ПО', network: 'Сеть' };
 let lastRequest = 0;
 
+// Создаёт элемент с ТЕКСТОМ (textContent) — HTML из пользовательского ввода не интерпретируется.
+function el(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+
+function renderTicket(ticket) {
+  const item = el('li', 'ticket');
+  item.dataset.testid = 'ticket-item';
+  item.dataset.id = ticket.id;
+  const meta = el('div', 'ticket-meta');
+  meta.append(
+    el('span', '', categoryLabels[ticket.category]),
+    el('span', '', priorityLabels[ticket.priority]),
+    el('span', '', statusLabels[ticket.status])
+  );
+  item.append(
+    el('h3', 'ticket-title', ticket.title),
+    el('p', 'ticket-description', ticket.description),
+    meta
+  );
+  if (ticket.status !== 'resolved') {
+    const nextStatus = ticket.status === 'new' ? 'in_progress' : 'resolved';
+    const button = el('button', '', ticket.status === 'new' ? 'В работу' : 'Завершить');
+    button.dataset.id = ticket.id;
+    button.dataset.next = nextStatus;
+    item.append(button);
+  }
+  return item;
+}
+
 async function loadTickets() {
   const requestId = ++lastRequest;
   try {
@@ -29,18 +62,7 @@ async function loadTickets() {
     listMessage.textContent = '';
     count.textContent = String(data.total);
 
-    list.innerHTML = data.items.map((ticket) => {
-      const nextStatus = ticket.status === 'new' ? 'in_progress' : 'resolved';
-      const action = ticket.status === 'resolved' ? '' :
-        `<button data-id="${ticket.id}" data-next="${nextStatus}">${ticket.status === 'new' ? 'В работу' : 'Завершить'}</button>`;
-      return `<li class="ticket" data-testid="ticket-item" data-id="${ticket.id}">
-        <h3 class="ticket-title">${ticket.title}</h3>
-        <p class="ticket-description">${ticket.description}</p>
-        <div class="ticket-meta"><span>${categoryLabels[ticket.category]}</span>
-          <span>${priorityLabels[ticket.priority]}</span><span>${statusLabels[ticket.status]}</span></div>
-        ${action}
-      </li>`;
-    }).join('');
+    list.replaceChildren(...data.items.map(renderTicket));
     if (data.total === 0) list.textContent = 'Заявок по заданным условиям нет.';
   } catch (_) {
     if (requestId !== lastRequest) return;
