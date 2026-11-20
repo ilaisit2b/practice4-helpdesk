@@ -136,4 +136,19 @@ describe('API на демонстрационных данных', () => {
     expect((await api.setStatus(1, 'closed')).status).toBe(400);
     expect((await api.setStatus(999, 'in_progress')).status).toBe(404);
   });
+
+  // TDD (задание A): фильтр по приоритету
+  test('T-01 GET /api/tickets?priority=high возвращает только high', async () => {
+    const { status, body } = await api.list('?priority=high');
+    expect(status).toBe(200);
+    expect(body.total).toBe(2);
+    expect(body.items.map((t) => t.priority)).toEqual(['high', 'high']);
+  });
+
+  test('T-02 priority сочетается с category и status (AND)', async () => {
+    const { body } = await api.list('?priority=high&category=network&status=new');
+    expect(body.items.map((t) => t.id)).toEqual([1]);
+    const none = await api.list('?priority=low&category=network');
+    expect(none.body.total).toBe(0);
+  });
 });
