@@ -1,0 +1,65 @@
+name: HelpDesk autotests
+on:
+  push:
+  pull_request:
+
+jobs:
+  unit-integration:
+    name: Unit + Integration (Jest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install dependencies
+        run: npm install
+        env:
+          CYPRESS_INSTALL_BINARY: 0   # для Jest браузер не нужен — ставим быстрее
+      - name: Unit tests
+        run: npm run test:unit
+      - name: Integration tests
+        run: npm run test:integration
+      - name: Coverage
+        if: always()
+        run: npm run test:coverage
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage/
+
+  e2e:
+    name: E2E (Cypress)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install dependencies
+        run: npm install
+      - name: Start test server
+        run: |
+          npm run start:test > server.log 2>&1 &
+          echo "Сервер запущен в фоне"
+      - name: Wait for /api/health
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fs http://127.0.0.1:3000/api/health; then echo; echo "API готово"; exit 0; fi
+            sleep 1
+          done
+          echo "Сервер не поднялся за 30 секунд"; cat server.log; exit 1
+      - name: Cypress run
+        run: npm run e2e
+      - name: Upload screenshots on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cypress-screenshots
+          path: cypress/screenshots/
+          if-no-files-found: ignore
+      - name: Server log
+        if: always()
+        run: cat server.log
