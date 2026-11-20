@@ -16,6 +16,8 @@ describe('HelpDesk — E2E-сценарии', () => {
     cy.get('[data-testid="page-title"]').should('contain', 'HelpDesk');
     page.items().should('have.length', 4);
     page.count().should('have.text', '4');
+    // сортировка: сначала high, при равном приоритете — более новая
+    cy.get('.ticket-title').first().should('have.text', 'Wi-Fi на этаже');
   });
 
   it('E-02 BDD-1: создание корректной заявки через форму', () => {
@@ -70,5 +72,13 @@ describe('HelpDesk — E2E-сценарии', () => {
       cy.get('.ticket-title').should('have.text', evil);
     });
     cy.window().should('not.have.property', '__xss');
+  });
+
+  it('E-07 фильтр по приоритету (TDD) сочетается с другими фильтрами', () => {
+    page.setPriority('high');
+    page.items().should('have.length', 2);
+    page.setCategory('network');
+    page.setStatus('new');
+    page.items().should('have.length', 1).first().should('contain', 'VPN недоступен');
   });
 });
